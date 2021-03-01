@@ -5,7 +5,7 @@ import threading
 import time
 import os
 import signal
-from collections import OrderedDict
+from config import *
 
 class Node:
     
@@ -24,8 +24,8 @@ class Node:
             'port': None
         }
         self.storage = {}
-        self.nodeDict = OrderedDict()
-        self.ready = False
+        self.k = 1
+        self.ready = {}
     
     ''' Finds successor. '''
     def find_successor(self, data):
@@ -34,7 +34,9 @@ class Node:
         dest_IP = data['dest_IP']
         dest_port = data['dest_port']
         key = data['key']
-        if(data['overlay']):
+        timeString = 'indlovu' + data['time']
+        
+        if(data['action'] == OVERLAY):
             if(data['value']):
                 vault = '{}:{} :'.format(self.IP, self.port)
                 for t in self.storage.items():
@@ -52,29 +54,79 @@ class Node:
             'dest_IP': dest_IP,
             'dest_port': dest_port,
             'key': key,
-            'overlay': data['overlay'],
-            'search': data['search'],
-            'insert': data['insert'],
-            'delete': data['delete'],
+            'action': data['action'],
             'node_list': data['node_list'],
-            'value': data['value']
+            'value': data['value'],
+            'time': data['time']
         }
         
-        if (between(self.pred['ID'], self.ID, key)):
+        found = ()
+        if(data['action'] == SEARCH):
+            try:
+                found = self.storage[key]
+            except:
+                pass
+        if (between(self.pred['ID'], self.ID, key) or found):
             print("Node " + str(self.port) + " is the successor...")
-            if(data['search']):
-                try:
-                    data['search'] = self.storage[key]
-                except:
-                    data['search'] = "The requested key was not found."
-            if(data['insert']):
-                self.storage[key] = data['value']
-            if(data['delete']):
+            if(data['action'] == SEARCH):
                 try:
                     data['value'] = self.storage[key]
-                    self.storage.pop(key)
                 except:
-                    data['value'] = ""
+                    data['value'] = "The requested key was not found."
+            elif(data['action'] == INSERT):
+                value = data['value'][key]
+                self.storage[key] = value
+                if(self.k > 1):
+                    address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
+                    endpoint = '/query'
+                    args = {
+                        'dest_ID': self.ID,
+                        'dest_IP': self.IP,
+                        'dest_port': self.port,
+                        'key': self.pred['ID'],
+                        'action': INS_REPL,
+                        'node_list': data['node_list'],
+                        'value': {
+                            data['key']: (value[0], value[1] + 1)
+                        },
+                        'time': timeString
+                    }
+                    def thread_function():
+                        response = requests.post(address + endpoint, data=pickle.dumps(args))
+
+                    req = threading.Thread(target=thread_function, args=())
+                    req.start()
+            elif(data['action'] == DELETE):
+                try:
+                    data['value'] = {
+                        key: self.storage[key]
+                    }
+                    self.storage.pop(key)
+                    if(self.k > 1):
+                        address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
+                        endpoint = '/query'
+                        args = {
+                            'dest_ID': self.ID,
+                            'dest_IP': self.IP,
+                            'dest_port': self.port,
+                            'key': self.pred['ID'],
+                            'action': DEL_REPL,
+                            'node_list': data['node_list'],
+                            'value': {
+                                data['key']: ()
+                            },
+                            'time': timeString
+                        }
+                        def thread_function():
+                            response = requests.post(address + endpoint, data=pickle.dumps(args))
+
+                        req = threading.Thread(target=thread_function, args=())
+                        req.start()
+                except:
+                    data['value'] = {}
+            elif((data['action'] == INS_REPL) or (data['action'] == DEL_REPL)):
+                return "Enter the cult..."
+            
             address = 'http://' + '{}:{}'.format(dest_IP, dest_port)
             endpoint = '/eureka'
             args = {
@@ -85,12 +137,10 @@ class Node:
                 'pred_IP': self.pred['IP'],
                 'pred_port': self.pred['port'],
                 'key': key,
-                'overlay': data['overlay'],
-                'search': data['search'],
-                'insert': data['insert'],
-                'delete': data['delete'],
+                'action': data['action'],
                 'node_list': data['node_list'],
-                'value': data['value']
+                'value': data['value'],
+                'time': data['time']
             }
         else:
             print("Forwarding to node " + str(self.succ['port']))
@@ -113,7 +163,7 @@ class Node:
         self.pred['port'] = self.port
     
     
-    def join(self, BOOTSTRAP_ADDRESS):
+    def join(self, BOOTSTRAP_ADDRESS, timestamp):
         print("Joining...")
 
         address = 'http://' + BOOTSTRAP_ADDRESS
@@ -123,7 +173,10 @@ class Node:
             'dest_IP': self.IP,
             'dest_port': self.port,
             'key': self.ID,
-            'node': self
+            'action': JOIN,
+            'node_list': [],
+            'value': {},
+            'time': timestamp
         }
         
         def thread_function():
@@ -138,7 +191,7 @@ class Node:
         
         
     ''' We want to make sure we have the correct items in our storage. '''
-    def request_items(self):
+    def request_items(self, timestamp):
         print("SEND THEM.")
 
         address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
@@ -146,7 +199,8 @@ class Node:
         args = {
             'ID': self.ID,
             'IP': self.IP,
-            'port': self.port
+            'port': self.port,
+            'time': timestamp
         }
 
         def thread_function():
@@ -156,7 +210,7 @@ class Node:
         req.start()
     
     
-    def notify_predecessor(self):
+    def notify_predecessor(self, timestamp):
         print("I AM YOUR FATHER.")
 
         address = 'http://' + '{}:{}'.format(self.pred['IP'], self.pred['port'])
@@ -164,7 +218,8 @@ class Node:
         args = {
             'ID': self.ID,
             'IP': self.IP,
-            'port': self.port
+            'port': self.port,
+            'time': timestamp
         }
 
         def thread_function():
@@ -175,20 +230,34 @@ class Node:
 
 
     ''' Sends relevant items to the node that claims to be your predecessor. '''
-    def send_items(self):
-        send_list = []
-        for k, v in self.storage.items():
-            if not between(self.pred['ID'], self.ID, k):
-                send_list.append((k, v))
-        for item in send_list:
-            self.storage.pop(item[0])
+    def send_items(self, timestamp):
+        send_dict = {}
+        crap_dict = {}
+        '''
+            -Send those for which pred should be responsible (incidentally k == 1)
+            -Don't send replicas, rely on pred->pred to do so, 
+                    just delete those with replica_num == k
+        '''
+        for t in self.storage.items():
+            if(not between(self.pred['ID'], self.ID, t[0]) and t[1][1] == 1):
+                send_dict[t[0]] = t[1]
+            ''' I am not the tail any more... '''
+            if(t[1][1] == self.k and self.k > 1):
+                crap_dict[t[0]] = t[1]
+        
+        ''' I am either not the tail or I am not responsible for the record any more... '''
+        for t in send_dict.keys():
+            self.storage.pop(t)
+        for t in crap_dict.keys():
+            self.storage.pop(t)
 
         print("Parta.")
 
         address = 'http://' + '{}:{}'.format(self.pred['IP'], self.pred['port'])
         endpoint = '/receiveItems'
         args = {
-            'storage': send_list
+            'storage': send_dict,
+            'time': timestamp
         }
 
         def thread_function():
@@ -199,7 +268,7 @@ class Node:
         
         
     '''Sends all items to successor before departure. '''
-    def send_to_successor(self):
+    def send_to_successor(self, timestamp):
         print("I'm out.")
 
         address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
@@ -208,7 +277,8 @@ class Node:
             'storage': self.storage,
             'ID': self.pred['ID'],
             'IP': self.pred['IP'],
-            'port': self.pred['port']
+            'port': self.pred['port'],
+            'time': timestamp
         }
 
         def thread_function():
@@ -227,12 +297,3 @@ def between(ID1, ID2, key):
         return True if key > ID1 and key <= ID2 else False
     else:
         return True if key > ID1 or  key <= ID2 else False
-
-def between_exclusive(ID1, ID2, key):
-    if ID1 == ID2:
-        return True
-    wrap = ID1 > ID2
-    if not wrap:
-        return True if key > ID1 and key < ID2 else False
-    else:
-        return True if key > ID1 or  key < ID2 else False

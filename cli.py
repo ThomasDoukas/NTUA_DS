@@ -1,4 +1,4 @@
-import config
+from config import *
 import socket
 import hashlib
 import requests
@@ -8,14 +8,9 @@ import time
 from argparse import ArgumentParser
 from flask import Flask, Blueprint, jsonify, request
 
-# All nodes are aware of the ip and the port of the bootstrap
-# node, in order to communicate with it when entering the network.
-BOOTSTRAP_IP = config.BOOTSTRAP_IP
-BOOTSTRAP_PORT = config.BOOTSTRAP_PORT
 BOOTSTRAP_ADDRESS = "{}:{}".format(BOOTSTRAP_IP, BOOTSTRAP_PORT)
 
-# Get the IP address of the device.
-if config.LOCAL:
+if LOCAL:
     address = BOOTSTRAP_IP
 else:
     hostname = socket.gethostname()
@@ -33,7 +28,6 @@ if __name__ == '__main__':
     optional.add_argument('-k', type=str, help='song to look for/insert/delete')
     optional.add_argument('-v', type=str, help='value to insert')
 
-    # Parse the given arguments.
     args = parser.parse_args()
     port = args.p
     action = args.a
@@ -57,7 +51,7 @@ if __name__ == '__main__':
             print(response.text)
         elif action == "insert":
             endpoint += "insert"
-            response = requests.post(endpoint, data=pickle.dumps((key, value)))
+            response = requests.post(endpoint, data=pickle.dumps((key, (value, 1))))
             print(response.text)
         elif action == "delete":
             endpoint += "delete"

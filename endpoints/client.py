@@ -1,12 +1,13 @@
 import requests
 import pickle
-import time
+from time import time
 import hashlib
 import threading
 import asyncio
 
 from flask import Blueprint, jsonify, request
 from endpoints.chord import node
+from config import *
 
 client = Blueprint('client', __name__)
 
@@ -15,25 +16,25 @@ def search():
     data = pickle.loads(request.get_data())
     b = data.encode()
     hashedKey = hashlib.sha1(b).hexdigest()
+    
+    timestamp = str(time())
     args = {
         'dest_ID': node.ID,
         'dest_IP': node.IP,
         'dest_port': node.port,
         'key': hashedKey,
-        'overlay': False,
-        'search': True,
-        'insert': False,
-        'delete': False,
+        'action': SEARCH,
         'node_list': [],
-        'value': []
+        'value': {},
+        'time': timestamp
     }
-    
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
     
+    node.ready[timestamp] = ""
     async def thread_function():
-        while(not node.ready):
+        while(not node.ready[timestamp]):
             pass
-        return node.ready
+        return node.ready[timestamp]
     
     async def req():
         response = requests.post(endpoint, data=pickle.dumps(args))
@@ -49,35 +50,36 @@ def search():
     loop = asyncio.get_event_loop()
     res1 = loop.run_until_complete(do())
     loop.close()
-    node.ready = []
+    node.ready.pop(timestamp)
     return res1.result()
 
 
 @client.route('/client/insert', methods=['POST'])
 def insert():
     data = pickle.loads(request.get_data())
-    print(data)
     b = data[0].encode()
     hashedKey = hashlib.sha1(b).hexdigest()
+    
+    timestamp = str(time())
     args = {
         'dest_ID': node.ID,
         'dest_IP': node.IP,
         'dest_port': node.port,
         'key': hashedKey,
-        'overlay': False,
-        'search': False,
-        'insert': True,
-        'delete': False,
+        'action': INSERT,
         'node_list': [],
-        'value': data[1]
+        'value': {
+            hashedKey : data[1]
+        },
+        'time': timestamp
     }
-    
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
     
+    node.ready[timestamp] = ""
     async def thread_function():
-        while(not node.ready):
+        while(not node.ready[timestamp]):
             pass
-        return node.ready
+        return node.ready[timestamp]
     
     async def req():
         response = requests.post(endpoint, data=pickle.dumps(args))
@@ -93,24 +95,23 @@ def insert():
     loop = asyncio.get_event_loop()
     res1 = loop.run_until_complete(do())
     loop.close()
-    node.ready = []
+    node.ready.pop(timestamp)
     return res1.result()
 
 
 @client.route('/client/overlay/<mode>', methods=['GET'])
 def overlay(mode):
+    timestamp = str(time())
     if(mode == "nodes"):
         args = {
             'dest_ID': node.ID,
             'dest_IP': node.IP,
             'dest_port': node.port,
             'key': node.pred['ID'],
-            'overlay': True,
-            'search': False,
-            'insert': False,
-            'delete': False,
+            'action': OVERLAY,
             'node_list': [],
-            'value': []
+            'value': {},
+            'time': timestamp
         }
     else:
         args = {
@@ -118,19 +119,18 @@ def overlay(mode):
             'dest_IP': node.IP,
             'dest_port': node.port,
             'key': node.pred['ID'],
-            'overlay': True,
-            'search': False,
-            'insert': False,
-            'delete': False,
+            'action': OVERLAY,
             'node_list': [],
-            'value': ['indlovu']
+            'value': {'Not empty':'dictionary'},
+            'time': timestamp
         }
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
         
+    node.ready[timestamp] = ""
     async def thread_function():
-        while(not node.ready):
+        while(not node.ready[timestamp]):
             pass
-        return node.ready
+        return node.ready[timestamp]
     
     async def req():
         response = requests.post(endpoint, data=pickle.dumps(args))
@@ -146,7 +146,7 @@ def overlay(mode):
     loop = asyncio.get_event_loop()
     res1 = loop.run_until_complete(do())
     loop.close()
-    node.ready = []
+    node.ready.pop(timestamp)
     return res1.result()
 
 
@@ -155,25 +155,26 @@ def delete():
     data = pickle.loads(request.get_data())
     b = data.encode()
     hashedKey = hashlib.sha1(b).hexdigest()
+    
+    timestamp = str(time())
     args = {
         'dest_ID': node.ID,
         'dest_IP': node.IP,
         'dest_port': node.port,
         'key': hashedKey,
-        'overlay': False,
-        'search': False,
-        'insert': False,
-        'delete': True,
+        'action': DELETE,
         'node_list': [],
-        'value': []
+        'value': {},
+        'time': timestamp
     }
     
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
     
+    node.ready[timestamp] = ""
     async def thread_function():
-        while(not node.ready):
+        while(not node.ready[timestamp]):
             pass
-        return node.ready
+        return node.ready[timestamp]
     
     async def req():
         response = requests.post(endpoint, data=pickle.dumps(args))
@@ -189,11 +190,15 @@ def delete():
     loop = asyncio.get_event_loop()
     res1 = loop.run_until_complete(do())
     loop.close()
-    node.ready = []
+    node.ready.pop(timestamp)
     return res1.result()
 
-
+'''
+    At some point this should be done asynchronously.
+    Same as the rest of them...
+'''
 @client.route('/client/depart', methods=['POST'])
 def depart():
-    node.send_to_successor()
+    timestamp = str(time())
+    node.send_to_successor(timestamp)
     return 'Node {}:{} departed successfully!'.format(node.IP, node.port)
