@@ -3,5 +3,6 @@ endpoints/__pycache__
 okeanos.txt
 input
 .vs
+.vscode
 ChordRing.py
 venv

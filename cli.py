@@ -1,12 +1,11 @@
 from config import *
 import socket
-import hashlib
 import requests
 import pickle
-import time
+import os
 
 from argparse import ArgumentParser
-from flask import Flask, Blueprint, jsonify, request
+from PyInquirer import style_from_dict, Token, prompt
 
 BOOTSTRAP_ADDRESS = "{}:{}".format(BOOTSTRAP_IP, BOOTSTRAP_PORT)
 
@@ -16,6 +15,159 @@ else:
     hostname = socket.gethostname()
     address = socket.gethostbyname(hostname)
 
+
+style = style_from_dict({
+    Token.QuestionMark: '#E91E63 bold',
+    Token.Selected: '#673AB7 bold',
+    Token.Instruction: '',  # default
+    Token.Answer: '#2196f3 bold',
+    Token.Question: '',
+})
+
+def yellow(string): print("\033[1;93m {}\033[00m\n" .format(string)) 
+
+def HomeOrExit():
+    HomeOrExit_q = [
+        {
+            'type': 'list',
+            'name': 'option',
+            'message': 'What do you want to do?',
+            'choices': ['Home', 'Exit'],
+            'filter': lambda val: val.lower()
+        }]
+    HomeOrExit_a = prompt(HomeOrExit_q)['option']
+    return HomeOrExit_a
+
+def client(port):
+    os.system('cls||clear')
+    yellow('What a beautiful day to enter the cult...')
+    while True:
+        print("----------------------------------------------------------------------")
+        method_q = [
+            {
+                'type': 'list',
+                'name': 'method',
+                'message': 'What would you like to do?',
+                'choices': ['Network Overlay', 'Search for a Song', 'Insert a Song', 'Delete a Song', 'Depart', 'Exit']
+            }]
+        method_a = prompt(method_q, style=style)["method"]
+        os.system('cls||clear')
+        if method_a == 'Search for a Song':
+            print("Search for a Song")
+            print("----------------------------------------------------------------------")
+            endpoint = 'http://' + address + ":" + str(port) + "/client/"
+            search_q = [
+                {
+                    'type': 'input',
+                    'name': 'song',
+                    'message': 'Song to look for:',
+                    'filter': lambda val: str(val)
+                }]
+            search_a = prompt(search_q, style=style)
+            search_confirm_a = True #prompt(search_confirm_q)["search_confirm"]
+            if search_confirm_a:
+                if search_a["song"] == "*":
+                    endpoint += "overlay/values"
+                    response = requests.get(endpoint)
+                else:
+                    endpoint += "search"
+                    key = search_a["song"]
+                    response = requests.post(endpoint, data=pickle.dumps(key))
+                print(response.text + '\n')
+                continue
+
+        elif method_a == 'Network Overlay':
+            print("Overlay of Nodes currently in the Chord Ring.")
+            print("----------------------------------------------------------------------\n")
+            endpoint = 'http://' + address + ":" + str(port) + "/client/"
+            endpoint += "overlay/nodes"
+            response = requests.get(endpoint)
+            print(response.text + '\n')
+            continue
+
+        elif method_a == 'Insert a Song':
+            print("Insert a new song")
+            print("----------------------------------------------------------------------")
+            endpoint = 'http://' + address + ":" + str(port) + "/client/"
+            insert_q = [
+                {
+                    'type': 'input',
+                    'name': 'song insert',
+                    'message': 'Song to insert to the Chord Ring:',
+                    'filter': lambda val: str(val)
+                },
+                {
+                    'type': 'input',
+                    'name': 'value',
+                    'message': 'Value:',
+                    'filter': lambda val: str(val)
+                }]
+            insert_a = prompt(insert_q, style=style)
+            print("\nConfirm insertion:")
+            insert_confirm_q = [
+                {
+                    'type': 'confirm',
+                    'name': 'insert_confirm',
+                    'message': 'Add ' + insert_a["song insert"] + ' with value ' + insert_a["value"] + ' to storage?',
+                    'default': True
+                }
+            ]
+            insert_confirm_a = prompt(insert_confirm_q)["insert_confirm"]
+            if insert_confirm_a:
+                endpoint += "insert"
+                key = insert_a["song insert"]
+                value = insert_a["value"]
+                response = requests.post(endpoint, data=pickle.dumps((key, (value, 1))))
+                print(response.text + '\n')
+                continue
+
+        elif method_a == 'Delete a Song':
+            print("Delete a song")
+            print("----------------------------------------------------------------------")
+            endpoint = 'http://' + address + ":" + str(port) + "/client/"
+            delete_q = [
+                {
+                    'type': 'input',
+                    'name': 'song delete',
+                    'message': 'Song to delete from the Chord Ring:',
+                    'filter': lambda val: str(val)
+                }]
+            delete_a = prompt(delete_q, style=style)
+            print("\nConfirm deletion:")
+            delete_confirm_q = [
+                {
+                    'type': 'confirm',
+                    'name': 'delete_confirm',
+                    'message': 'Are you sure you want to delete the song ' + delete_a["song delete"] + ' from storage?',
+                    'default': False
+                }
+            ]
+            delete_confirm_a = prompt(delete_confirm_q)["delete_confirm"]
+            if delete_confirm_a:
+                endpoint += "delete"
+                key = delete_a["song delete"]
+                response = requests.post(endpoint, data=pickle.dumps(key))
+                print(response.text + '\n')
+                continue
+
+        elif method_a == 'Depart':
+            print("Departing from the Chord Ring.")
+            print("----------------------------------------------------------------------\n")
+            endpoint = 'http://' + address + ":" + str(port) + "/client/"
+            endpoint += "depart"
+            response = requests.post(endpoint)
+            print(response.text + '\n')
+            break
+
+        elif method_a == 'Exit':
+            os.system('cls||clear')
+            break
+
+        else:
+            break
+
+
+
 if __name__ == '__main__':
     
     parser = ArgumentParser(description='Enter the cult...')
@@ -24,42 +176,8 @@ if __name__ == '__main__':
     optional = parser.add_argument_group('optional_arguments')
 
     required.add_argument('-p', type=int, help='port to talk to', required=True)
-    required.add_argument('-a', type=str, help='action', required=True)
-    optional.add_argument('-k', type=str, help='song to look for/insert/delete')
-    optional.add_argument('-v', type=str, help='value to insert')
 
     args = parser.parse_args()
     port = args.p
-    action = args.a
-    key = args.k
-    value = args.v
     
-    endpoint = 'http://' + address + ":" + str(port) + "/client/"
-    
-    try:
-        if action == "search":
-            if key == "*":
-                endpoint += "overlay/values"
-                response = requests.get(endpoint)
-            else:
-                endpoint += "search"
-                response = requests.post(endpoint, data=pickle.dumps(key))
-            print(response.text)
-        elif action == "overlay":
-            endpoint += "overlay/nodes"
-            response = requests.get(endpoint)
-            print(response.text)
-        elif action == "insert":
-            endpoint += "insert"
-            response = requests.post(endpoint, data=pickle.dumps((key, (value, 1))))
-            print(response.text)
-        elif action == "delete":
-            endpoint += "delete"
-            response = requests.post(endpoint, data=pickle.dumps(key))
-            print(response.text)
-        elif action == "depart":
-            endpoint += "depart"
-            response = requests.post(endpoint)
-            print(response.text)
-    except:
-        print('There was an error (probably no server listening to port {}).'.format(port))
+    client(port)
