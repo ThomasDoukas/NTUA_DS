@@ -4,5 +4,5 @@ okeanos.txt
 input
 .vs
 .vscode
-ChordRing.py
+client.py
 venv

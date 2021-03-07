@@ -19,12 +19,13 @@ else:
 style = style_from_dict({
     Token.QuestionMark: '#E91E63 bold',
     Token.Selected: '#673AB7 bold',
-    Token.Instruction: '',  # default
+    Token.Instruction: '#0bf416',  # default
     Token.Answer: '#2196f3 bold',
-    Token.Question: '',
+    Token.Question: '#0bf416 bold',
 })
 
-def yellow(string): print("\033[1;93m {}\033[00m\n" .format(string)) 
+def yellow(string):
+    return "\033[1;93m {}\033[00m\n".format(string)
 
 def HomeOrExit():
     HomeOrExit_q = [
@@ -73,7 +74,7 @@ def client(port):
                     endpoint += "search"
                     key = search_a["song"]
                     response = requests.post(endpoint, data=pickle.dumps(key))
-                print(response.text + '\n')
+                print(yellow(response.text))
                 continue
 
         elif method_a == 'Network Overlay':
@@ -82,7 +83,7 @@ def client(port):
             endpoint = 'http://' + address + ":" + str(port) + "/client/"
             endpoint += "overlay/nodes"
             response = requests.get(endpoint)
-            print(response.text + '\n')
+            print(yellow(response.text))
             continue
 
         elif method_a == 'Insert a Song':
@@ -118,7 +119,7 @@ def client(port):
                 key = insert_a["song insert"]
                 value = insert_a["value"]
                 response = requests.post(endpoint, data=pickle.dumps((key, (value, 1))))
-                print(response.text + '\n')
+                print(yellow(response.text))
                 continue
 
         elif method_a == 'Delete a Song':
@@ -147,7 +148,7 @@ def client(port):
                 endpoint += "delete"
                 key = delete_a["song delete"]
                 response = requests.post(endpoint, data=pickle.dumps(key))
-                print(response.text + '\n')
+                print(yellow(response.text))
                 continue
 
         elif method_a == 'Depart':
@@ -156,7 +157,7 @@ def client(port):
             endpoint = 'http://' + address + ":" + str(port) + "/client/"
             endpoint += "depart"
             response = requests.post(endpoint)
-            print(response.text + '\n')
+            print(yellow(response.text))
             break
 
         elif method_a == 'Exit':

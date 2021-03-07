@@ -2,10 +2,9 @@ import requests
 import pickle
 from time import time
 import hashlib
-import threading
 import asyncio
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from endpoints.chord import node
 from config import *
 
@@ -24,6 +23,7 @@ def search():
         'dest_port': node.port,
         'key': hashedKey,
         'action': SEARCH,
+        'consistency': node.consistency,
         'node_list': [],
         'value': {},
         'time': timestamp
@@ -31,7 +31,7 @@ def search():
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
     
     node.ready[timestamp] = ""
-    async def thread_function():
+    async def barrier():
         while(not node.ready[timestamp]):
             pass
         return node.ready[timestamp]
@@ -42,7 +42,7 @@ def search():
     
     async def do():
         res2 = loop.create_task(req())
-        res1 = loop.create_task(thread_function())
+        res1 = loop.create_task(barrier())
         await asyncio.wait([res1, res2])
         return res1
     
@@ -67,6 +67,7 @@ def insert():
         'dest_port': node.port,
         'key': hashedKey,
         'action': INSERT,
+        'consistency': node.consistency,
         'node_list': [],
         'value': {
             hashedKey : data[1]
@@ -76,7 +77,7 @@ def insert():
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
     
     node.ready[timestamp] = ""
-    async def thread_function():
+    async def barrier():
         while(not node.ready[timestamp]):
             pass
         return node.ready[timestamp]
@@ -87,7 +88,7 @@ def insert():
     
     async def do():
         res2 = loop.create_task(req())
-        res1 = loop.create_task(thread_function())
+        res1 = loop.create_task(barrier())
         await asyncio.wait([res1, res2])
         return res1
     
@@ -109,6 +110,7 @@ def overlay(mode):
             'dest_port': node.port,
             'key': node.pred['ID'],
             'action': OVERLAY,
+            'consistency': node.consistency,
             'node_list': [],
             'value': {},
             'time': timestamp
@@ -120,6 +122,7 @@ def overlay(mode):
             'dest_port': node.port,
             'key': node.pred['ID'],
             'action': OVERLAY,
+            'consistency': node.consistency,
             'node_list': [],
             'value': {'Not empty':'dictionary'},
             'time': timestamp
@@ -127,7 +130,7 @@ def overlay(mode):
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
         
     node.ready[timestamp] = ""
-    async def thread_function():
+    async def barrier():
         while(not node.ready[timestamp]):
             pass
         return node.ready[timestamp]
@@ -138,7 +141,7 @@ def overlay(mode):
     
     async def do():
         res2 = loop.create_task(req())
-        res1 = loop.create_task(thread_function())
+        res1 = loop.create_task(barrier())
         await asyncio.wait([res1, res2])
         return res1
     
@@ -163,6 +166,7 @@ def delete():
         'dest_port': node.port,
         'key': hashedKey,
         'action': DELETE,
+        'consistency': node.consistency,
         'node_list': [],
         'value': {},
         'time': timestamp
@@ -171,7 +175,7 @@ def delete():
     endpoint = 'http://' + node.IP + ":" + str(node.port) + "/query"
     
     node.ready[timestamp] = ""
-    async def thread_function():
+    async def barrier():
         while(not node.ready[timestamp]):
             pass
         return node.ready[timestamp]
@@ -182,7 +186,7 @@ def delete():
     
     async def do():
         res2 = loop.create_task(req())
-        res1 = loop.create_task(thread_function())
+        res1 = loop.create_task(barrier())
         await asyncio.wait([res1, res2])
         return res1
     
@@ -193,10 +197,7 @@ def delete():
     node.ready.pop(timestamp)
     return res1.result()
 
-'''
-    At some point this should be done asynchronously.
-    Same as the rest of them...
-'''
+
 @client.route('/client/depart', methods=['POST'])
 def depart():
     timestamp = str(time())

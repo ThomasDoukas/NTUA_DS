@@ -34,13 +34,13 @@ if __name__ == '__main__':
 
     required.add_argument('-p', type=int, help='port to listen on', required=True)
     optional.add_argument('-bs', action='store_true', help='set if the current node is the bootstrap')
-    optional.add_argument('-c', help='consistency protocol', default='eventual')
+    optional.add_argument('-c', help='consistency protocol', default=EVENTUAL)
     optional.add_argument('-k', type=int, help='replication factor', default=1)
 
     args = parser.parse_args()
     port = args.p
     is_bootstrap = args.bs
-    consistency = args.c
+    consistency = LINEARIZABILITY if args.c else EVENTUAL
     k = args.k
     
     b = "{}:{}".format(address, port).encode()
@@ -55,6 +55,7 @@ if __name__ == '__main__':
 
     if is_bootstrap:
         node.k = k  # reqular nodes should be informed by bootstrap
+        node.consistency = consistency
         node.create()
         with open('input/insert.txt') as f:
             lines = f.readlines()

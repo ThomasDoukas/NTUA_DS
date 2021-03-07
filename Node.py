@@ -25,6 +25,7 @@ class Node:
         }
         self.storage = {}
         self.k = 1
+        self.consistency = EVENTUAL
         self.ready = {}
     
     ''' Finds successor. '''
@@ -33,7 +34,11 @@ class Node:
         dest_ID = data['dest_ID']
         dest_IP = data['dest_IP']
         dest_port = data['dest_port']
+        succ_ID = self.ID
+        succ_IP = self.IP
+        succ_port = self.port
         key = data['key']
+            
         timeString = 'indlovu' + data['time']
         
         if(data['action'] == OVERLAY):
@@ -55,13 +60,14 @@ class Node:
             'dest_port': dest_port,
             'key': key,
             'action': data['action'],
+            'consistency': data['consistency'],
             'node_list': data['node_list'],
             'value': data['value'],
             'time': data['time']
         }
         
         found = ()
-        if(data['action'] == SEARCH):
+        if((data['action'] == SEARCH) and (data['consistency'] == EVENTUAL)):
             try:
                 found = self.storage[key]
             except:
@@ -69,23 +75,114 @@ class Node:
         if (between(self.pred['ID'], self.ID, key) or found):
             print("Node " + str(self.port) + " is the successor...")
             if(data['action'] == SEARCH):
-                try:
-                    data['value'] = self.storage[key]
-                except:
-                    data['value'] = "The requested key was not found."
+                if((data['consistency'] == LINEARIZABILITY) and (self.k > 1)):
+                    '''
+                        We have found the primary replica manager.
+                        Now we need to forward the query until we reach the tail.
+                        To differentiate between the two phases of the linearizability search we will use a different flag.
+                        We also need to update the key with the successor's ID, 
+                        so that each one of my successors (and possible secondary replica managers)
+                        is potentially able to return to the client with the query response.
+                    '''
+                    value = ()
+                    superDuperImportantFlag = 1
+                    try:
+                        value = self.storage[key]
+                    except:
+                        value = "The requested key was not found."
+                        superDuperImportantFlag = 0
+
+                    data['value'] = value
+                    if (superDuperImportantFlag):
+                        address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
+                        endpoint = '/query'
+                        args = {
+                            'dest_ID': dest_ID,
+                            'dest_IP': dest_IP,
+                            'dest_port': dest_port,
+                            'key': self.succ['ID'],
+                            'action': SEARCH,
+                            'consistency': LINEARIZABILITY_PHASE_2,
+                            'node_list': data['node_list'],
+                            'value': {
+                                data['key']: value
+                            },
+                            'time': data['time']
+                        }
+                        def thread_function():
+                            response = requests.post(address + endpoint, data=pickle.dumps(args))
+
+                        req = threading.Thread(target=thread_function, args=())
+                        req.start()
+                        return "Enter the cult..."
+
+                elif (data['consistency'] == LINEARIZABILITY_PHASE_2):
+                    '''
+                        We are looking for the tail.
+                        The tail is:
+                            1 - either the node with replica_num == k (replication factor)
+                            2 - or the node that first discovers that the replica_num forwarded to them
+                                is greater than the locally stored one. That can happen if the total number 
+                                of participating nodes is smaller than the replication factor (circle).
+                        We need to check whether the current node is the tail.
+                        If it is not:
+                            - forward to the successor, using their ID as the (search) key, attaching the locally stored replica 
+                        If it is:
+                            - return to the client using:
+                                1 - the locally stored replica
+                                2 - the replica forwarded to me                    
+                    '''
+                    replKey, val = next(iter((data['value'].items()))) # Get first (and only) key-value pair of the dictionary
+                    replica = self.storage[replKey]
+                    if (val[1] > replica[1]):
+                        data['value'] =  val
+                        succ_ID = self.pred['ID']
+                        succ_IP = self.pred['IP']
+                        succ_port = self.pred['port']
+                    elif ((replica[1] == self.k) or (self.ID == self.succ['ID'])):
+                        data['value'] =  replica
+                    else:
+                        address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
+                        endpoint = '/query'
+                        args = {
+                            'dest_ID': dest_ID,
+                            'dest_IP': dest_IP,
+                            'dest_port': dest_port,
+                            'key': self.succ['ID'],
+                            'action': SEARCH,
+                            'consistency': LINEARIZABILITY_PHASE_2,
+                            'node_list': data['node_list'],
+                            'value': {
+                                replKey: replica
+                            },
+                            'time': data['time']
+                        }
+                        def thread_function():
+                            requests.post(address + endpoint, data=pickle.dumps(args))
+
+                        req = threading.Thread(target=thread_function, args=())
+                        req.start()
+                        return "Enter the cult..."
+                else:
+                    try:
+                        data['value'] = self.storage[key]
+                    except:
+                        data['value'] = "The requested key was not found."
+
             elif(data['action'] == INSERT):
                 value = data['value'][key]
                 self.storage[key] = value
-                if(self.k > 1):
+                if(self.k > 1 and (self.ID != self.succ['ID'])):
                     address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
                     endpoint = '/query'
                     args = {
-                        'dest_ID': self.ID,
-                        'dest_IP': self.IP,
-                        'dest_port': self.port,
-                        'key': self.pred['ID'],
+                        'dest_ID': dest_ID,
+                        'dest_IP': dest_IP,
+                        'dest_port': dest_port,
+                        'key': self.succ['ID'],
                         'action': INS_REPL,
-                        'node_list': data['node_list'],
+                        'consistency': data['consistency'],
+                        'node_list': [],
                         'value': {
                             data['key']: (value[0], value[1] + 1)
                         },
@@ -96,22 +193,31 @@ class Node:
 
                     req = threading.Thread(target=thread_function, args=())
                     req.start()
+                    
+                    ''' 
+                        - linearizability: the tail returns to the client -> NO EUREKA
+                        - eventual: the primary returns immediately after the insertion -> EUREKA
+                    '''
+                    if (data['consistency'] == LINEARIZABILITY):
+                        return "Enter the cult..."
+
             elif(data['action'] == DELETE):
                 try:
                     data['value'] = {
                         key: self.storage[key]
                     }
                     self.storage.pop(key)
-                    if(self.k > 1):
+                    if(self.k > 1 and (self.ID != self.succ['ID'])):
                         address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
                         endpoint = '/query'
                         args = {
-                            'dest_ID': self.ID,
-                            'dest_IP': self.IP,
-                            'dest_port': self.port,
-                            'key': self.pred['ID'],
+                            'dest_ID': dest_ID,
+                            'dest_IP': dest_IP,
+                            'dest_port': dest_port,
+                            'key': self.succ['ID'],
                             'action': DEL_REPL,
-                            'node_list': data['node_list'],
+                            'consistency': data['consistency'],
+                            'node_list': [],
                             'value': {
                                 data['key']: ()
                             },
@@ -122,22 +228,94 @@ class Node:
 
                         req = threading.Thread(target=thread_function, args=())
                         req.start()
+                        
+                        ''' Same as Insert '''
+                        if (data['consistency'] == LINEARIZABILITY):
+                            return "Enter the cult..."
+                        
                 except:
                     data['value'] = {}
-            elif((data['action'] == INS_REPL) or (data['action'] == DEL_REPL)):
+
+                '''
+                In the cases of STOP_INS and STOP_DEL:
+                We simply need to prepare the arguments to hit /eureka.
+                    node_list contains a list of tuples with the version history:
+                        t[0]: the node that made an insertion/deletion
+                        t[1]: the key-value pair inserted/deleted
+                    We need to fetch the last tuple in the list (node_list[-1]),
+                    which contains the tail of the insertion/deletion, as well the corresponding key-value pair.
+                '''
+            elif((data['action'] == STOP_INS)):
+                data['action'] = INSERT
+                succ_ID = data['node_list'][-1][0]['ID']
+                succ_IP = data['node_list'][-1][0]['IP']
+                succ_port = data['node_list'][-1][0]['port']
+                '''
+                Now a different thread has to forward the deletion message to the successor.
+                We don't care about most of the arguments below.
+                It is important that 'value' gets the deletion message sent via data['value'].
+                'action' could be either INS_REPL or just REPL.
+                '''
+                if (self.ID != self.succ['ID']):
+                    address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
+                    endpoint = '/query'
+                    args = {
+                        'dest_ID': dest_ID,
+                        'dest_IP': dest_IP,
+                        'dest_port': dest_port,
+                        'key': self.succ['ID'],
+                        'action': INS_REPL,
+                        'consistency': data['consistency'],
+                        'node_list': data['node_list'],
+                        'value': data['value'],
+                        'time': data['time'] #timeString
+                        # 'time': data['time'].split('indlovu')[1]
+                    }
+                    def thread_function():
+                        response = requests.post(address + endpoint, data=pickle.dumps(args))
+
+                    req = threading.Thread(target=thread_function, args=())
+                    req.start()
+                
+                key = data['node_list'][-1][1]['key']
+                try:
+                    data['time'] = data['time'].split('indlovu')[1]
+                except:
+                    pass
+                data['value'] = {
+                    key: data['node_list'][-1][1]['value']
+                }
+                
+            elif((data['action'] == STOP_DEL)):
+                data['action'] = DELETE
+                succ_ID = data['node_list'][-1][0]['ID']
+                succ_IP = data['node_list'][-1][0]['IP']
+                succ_port = data['node_list'][-1][0]['port']
+                
+                key = data['node_list'][-1][1]['key']
+                try:
+                    data['time'] = data['time'].split('indlovu')[1]
+                except:
+                    pass
+                data['value'] = {
+                    key: data['node_list'][-1][1]['value']
+                }
+
+            elif((data['action'] == INS_REPL) or (data['action'] == DEL_REPL) or (data['action'] == REPL)):
                 return "Enter the cult..."
             
             address = 'http://' + '{}:{}'.format(dest_IP, dest_port)
             endpoint = '/eureka'
             args = {
-                'succ_ID': self.ID,
-                'succ_IP': self.IP,
-                'succ_port': self.port,
+                'succ_ID': succ_ID,
+                'succ_IP': succ_IP,
+                'succ_port': succ_port,
                 'pred_ID': self.pred['ID'],
                 'pred_IP': self.pred['IP'],
                 'pred_port': self.pred['port'],
                 'key': key,
                 'action': data['action'],
+                'consistency': data['consistency'],
                 'node_list': data['node_list'],
                 'value': data['value'],
                 'time': data['time']
