@@ -100,7 +100,6 @@ def query():
     
     repl = {}
     condition = (data['action'] == INS_REPL) or (data['action'] == DEL_REPL) or (data['action'] == REPL)
-    # fwd_to_self = (node.ID == data['key']) if (data['action'] == INS_REPL) else False # why doesn't this break???
     if(condition and (node.k > 1)):
         for t in data['value'].items():
             '''
@@ -233,27 +232,25 @@ def notify():
         for item in node.storage.items():
             if(item[1][1] < node.k):
                 repl[item[0]] = (item[1][0], item[1][1] + 1)
-    if repl:
-        args = {
-                'dest_ID': node.ID,
-                'dest_IP': node.IP,
-                'dest_port': node.port,
-                'key': node.succ['ID'],
-                'action': REPL,
-                'consistency': node.consistency,
-                'node_list': [],
-                'value': repl,
-                'time': data['time']
-            }
-        endpoint = 'http://' + node.succ['IP'] + ":" + str(node.succ['port']) + "/query"
-        def thread_function():
-            response = requests.post(endpoint, data=pickle.dumps(args))
 
-        req = threading.Thread(target=thread_function, args=())
-        req.start()
-        return "Forwarded..."
-    else:
-        return "200"
+    args = {
+            'dest_ID': node.ID,
+            'dest_IP': node.IP,
+            'dest_port': node.port,
+            'key': node.succ['ID'],
+            'action': REPL,
+            'consistency': node.consistency,
+            'node_list': [],
+            'value': repl,
+            'time': data['time']
+        }
+    endpoint = 'http://' + node.succ['IP'] + ":" + str(node.succ['port']) + "/query"
+    def thread_function():
+        response = requests.post(endpoint, data=pickle.dumps(args))
+
+    req = threading.Thread(target=thread_function, args=())
+    req.start()
+    return "Forwarded..."
 
 
 @chord.route('/requestItems', methods=['POST'])

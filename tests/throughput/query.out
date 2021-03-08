@@ -1,0 +1,6 @@
+Consistency: eventual Replication Factor: 1 Read Throughput: 0.05086453104019165
+Consistency: linearizability Replication Factor: 1 Read Throughput: 0.05070378589630127
+Consistency: eventual Replication Factor: 3 Read Throughput: 0.047408805847167966
+Consistency: linearizability Replication Factor: 3 Read Throughput: 0.0720956015586853
+Consistency: eventual Replication Factor: 5 Read Throughput: 0.03993151330947876
+Consistency: linearizability Replication Factor: 5 Read Throughput: 0.09616331481933593

@@ -24,20 +24,23 @@ style = style_from_dict({
     Token.Question: '#0bf416 bold',
 })
 
-def yellow(string):
-    return "\033[1;93m {}\033[00m\n".format(string)
+def red(string):
+    return '\033[1;91m{}\033[00m'.format(string)
 
-def HomeOrExit():
-    HomeOrExit_q = [
+def yellow(string):
+    return "\033[1;93m{}\033[00m\n".format(string)
+
+def Home():
+    Home_q = [
         {
             'type': 'list',
             'name': 'option',
-            'message': 'What do you want to do?',
-            'choices': ['Home', 'Exit'],
+            'message': 'Press Enter to return to the Home Menu.',
+            'choices': ['Exit'],
             'filter': lambda val: val.lower()
         }]
-    HomeOrExit_a = prompt(HomeOrExit_q)['option']
-    return HomeOrExit_a
+    Home_a = prompt(Home_q)['option']
+    return Home_a
 
 def client(port):
     os.system('cls||clear')
@@ -49,7 +52,7 @@ def client(port):
                 'type': 'list',
                 'name': 'method',
                 'message': 'What would you like to do?',
-                'choices': ['Network Overlay', 'Search for a Song', 'Insert a Song', 'Delete a Song', 'Depart', 'Exit']
+                'choices': ['Network Overlay', 'Search for a Song', 'Insert a Song', 'Delete a Song', 'Depart', 'Help', 'Exit']
             }]
         method_a = prompt(method_q, style=style)["method"]
         os.system('cls||clear')
@@ -159,7 +162,50 @@ def client(port):
             response = requests.post(endpoint)
             print(yellow(response.text))
             break
-
+        
+        elif method_a == 'Help':
+            print("This is the manual page for the CLI tool.")
+            print("--------------------------------------------------------------------------\n")
+            print(yellow("Use the arrow keys to navigate and 'Enter' to select.\nAvoid clicking anywhere inside the CLI (it could terminate the program)."))
+            print(red("Network Overlay:"))
+            print(yellow(" Select this option to get a view of the Chord overlay.\n " +\
+                "The addresses of all participating nodes will be printed."))
+            print(red("Search for a Song:"))
+            print(yellow(" Select this option to make a query to the Chord Ring.\n " +\
+                "You will be prompted to insert a song title to look for.\n " +\
+                "Insert '*' to get all songs stored in each node."))
+            print(red("Insert a Song:"))
+            print(yellow(" Select this option to insert a song to the application.\n " +\
+                "You will be prompted to provide the title of the song (key),\n " +\
+                "as well as a string signifying the location of the actual file (value)."))
+            print(red("Delete a Song:"))
+            print(yellow(" Select this option to delete all replicas of a specific song from Chord.\n " +\
+                "You will be prompted to provide the title of a song to delete."))
+            print(red("Depart:"))
+            print(yellow(" Select this option to make the current node gracefully depart.\n " +\
+                "Before departing, the node sends all of its keys to the successor."))
+            print(red("Exit:"))
+            print(yellow(" Select this option to exit the CLI tool."))
+            print("--------------------------------------------------------------------------\n")
+            
+            home_q = [
+                {
+                    'type': 'confirm',
+                    'name': 'home',
+                    'message': 'Would you like to return to the Home Menu?',
+                    'default': False
+                }
+            ]
+            
+            while(not prompt(home_q)["home"]):
+                print(red("  Why would you even press Enter in the first place."))
+                pass
+            os.system('cls||clear')
+            continue
+            # if Home() == 'exit':
+            #     os.system('cls||clear')
+            #     continue
+            
         elif method_a == 'Exit':
             os.system('cls||clear')
             break

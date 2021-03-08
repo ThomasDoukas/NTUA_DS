@@ -1,0 +1,6 @@
+Consistency: eventual Replication Factor: 1 Requests Throughput: 0.055170466899871824
+Consistency: linearizability Replication Factor: 1 Requests Throughput: 0.05398964881896973
+Consistency: eventual Replication Factor: 3 Requests Throughput: 0.04799947261810303
+Consistency: linearizability Replication Factor: 3 Requests Throughput: 0.06863822889328003
+Consistency: eventual Replication Factor: 5 Requests Throughput: 0.042521190643310544
+Consistency: linearizability Replication Factor: 5 Requests Throughput: 0.09252951812744141
