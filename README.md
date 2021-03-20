@@ -28,13 +28,13 @@ When starting you only need to specify the port of a node already in the system,
 
 ## Tests
 
-* Consecutive Writes  
+### Consecutive Writes  
 ![Consecutive Writes](https://github.com/phoevos/dingane/blob/main/tests/plots/write_thr.png)
 
-* Consecutive Reads  
+### Consecutive Reads  
 ![Consecutive Reads](https://github.com/phoevos/dingane/blob/main/tests/plots/read_thr.png)
 
-* Mixed Read-Write Requests  
+### Mixed Read-Write Requests  
 ![Mixed Read-Write Requests](https://github.com/phoevos/dingane/blob/main/tests/plots/mixed.png)
 
 ## Contributors
