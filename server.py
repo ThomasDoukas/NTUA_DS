@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     required.add_argument('-p', type=int, help='port to listen on', required=True)
     optional.add_argument('-bs', action='store_true', help='set if the current node is the bootstrap')
-    optional.add_argument('-c', help='consistency protocol', default=EVENTUAL)
+    optional.add_argument('-c', help='consistency protocol, set if you want to use linearizability', default=EVENTUAL)
     optional.add_argument('-k', type=int, help='replication factor', default=1)
 
     args = parser.parse_args()

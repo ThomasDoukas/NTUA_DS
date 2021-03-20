@@ -1,11 +1,19 @@
 import requests
 import pickle
-import hashlib
 import threading
-import time
 import os
 import signal
 from config import *
+
+def between(ID1, ID2, key):
+    if ID1 == ID2:
+        return True
+    wrap = ID1 > ID2
+    if not wrap:
+        return True if key > ID1 and key <= ID2 else False
+    else:
+        return True if key > ID1 or  key <= ID2 else False
+
 
 class Node:
     
@@ -28,7 +36,18 @@ class Node:
         self.consistency = EVENTUAL
         self.ready = {}
     
-    ''' Finds successor. '''
+    ''' 
+    Finds successor. 
+    This is one of the most crucial functions in the application,
+    used by every major system action.
+    It is based on the simple Chord principle for key searching:
+        - if pred.ID < key <= self.ID then I'm responsible for the key (successor)
+        - if not, the message is forwarded to my successor
+    Depending on the type of system action (JOIN, SEARCH, INSERT, etc) different actions are triggered
+    upon finding the successor node.
+    In general, we use /eureka to terminate a find_successor sequence (either it is a client or a system action)
+    and /query to forward the message to self.succ.
+    '''
     def find_successor(self, data):
         print("Searching for successor...")
         dest_ID = data['dest_ID']
@@ -110,7 +129,7 @@ class Node:
                             'time': data['time']
                         }
                         def thread_function():
-                            response = requests.post(address + endpoint, data=pickle.dumps(args))
+                            requests.post(address + endpoint, data=pickle.dumps(args))
 
                         req = threading.Thread(target=thread_function, args=())
                         req.start()
@@ -189,7 +208,7 @@ class Node:
                         'time': timeString
                     }
                     def thread_function():
-                        response = requests.post(address + endpoint, data=pickle.dumps(args))
+                        requests.post(address + endpoint, data=pickle.dumps(args))
 
                     req = threading.Thread(target=thread_function, args=())
                     req.start()
@@ -224,7 +243,7 @@ class Node:
                             'time': timeString
                         }
                         def thread_function():
-                            response = requests.post(address + endpoint, data=pickle.dumps(args))
+                            requests.post(address + endpoint, data=pickle.dumps(args))
 
                         req = threading.Thread(target=thread_function, args=())
                         req.start()
@@ -272,7 +291,7 @@ class Node:
                         # 'time': data['time'].split('indlovu')[1]
                     }
                     def thread_function():
-                        response = requests.post(address + endpoint, data=pickle.dumps(args))
+                        requests.post(address + endpoint, data=pickle.dumps(args))
 
                     req = threading.Thread(target=thread_function, args=())
                     req.start()
@@ -324,13 +343,13 @@ class Node:
             print("Forwarding to node " + str(self.succ['port']))
 
         def thread_function():
-            response = requests.post(address + endpoint, data=pickle.dumps(args))
+            requests.post(address + endpoint, data=pickle.dumps(args))
 
         req = threading.Thread(target=thread_function, args=())
         req.start()
     
     
-    ''' Only gets run by the first node to join, as defined in paper. '''
+    ''' Only gets run by the bootstrap node. '''
     def create(self):
         print("Creating...")
         self.succ['ID'] = self.ID
@@ -340,7 +359,7 @@ class Node:
         self.pred['IP'] = self.IP
         self.pred['port'] = self.port
     
-    
+    ''' Gets run by every node other than the bootstrap when starting the server. '''
     def join(self, BOOTSTRAP_ADDRESS, timestamp):
         print("Joining...")
 
@@ -368,7 +387,10 @@ class Node:
         req.start()
         
         
-    ''' We want to make sure we have the correct items in our storage. '''
+    ''' 
+    When a new node enters the ring, after it finds its successor, 
+    it asks for any items (key-value pair) for which it is now responsible (pred.ID < key <= self.ID)
+    '''
     def request_items(self, timestamp):
         print("SEND THEM.")
 
@@ -382,12 +404,16 @@ class Node:
         }
 
         def thread_function():
-            response = requests.post(address + endpoint, data=pickle.dumps(args))
+            requests.post(address + endpoint, data=pickle.dumps(args))
 
         req = threading.Thread(target=thread_function, args=())
         req.start()
     
-    
+    ''' 
+    When a new node enters the ring, after it finds its successor, 
+    it notifies its predecessor so that the latter can update their succ info 
+    and send out any item that needs to be replicated.
+    '''
     def notify_predecessor(self, timestamp):
         print("I AM YOUR FATHER.")
 
@@ -401,18 +427,18 @@ class Node:
         }
 
         def thread_function():
-            response = requests.post(address + endpoint, data=pickle.dumps(args))
+            requests.post(address + endpoint, data=pickle.dumps(args))
 
         req = threading.Thread(target=thread_function, args=())
         req.start()
 
 
-    ''' Sends relevant items to the node that claims to be your predecessor. '''
+    ''' Sends relevant items to the newly inserted node that is now my predecessor. '''
     def send_items(self, timestamp):
         send_dict = {}
         crap_dict = {}
         '''
-            -Send those for which pred should be responsible (incidentally k == 1)
+            -Send those for which pred should be responsible (incidentally those with k == 1)
             -Don't send replicas, rely on pred->pred to do so, 
                     just delete those with replica_num == k
         '''
@@ -439,13 +465,13 @@ class Node:
         }
 
         def thread_function():
-            response = requests.post(address + endpoint, data=pickle.dumps(args))
+            requests.post(address + endpoint, data=pickle.dumps(args))
 
         req = threading.Thread(target=thread_function, args=())
         req.start()
         
         
-    '''Sends all items to successor before departure. '''
+    ''' Sends all items to successor before departure. '''
     def send_to_successor(self, timestamp):
         print("I'm out.")
 
@@ -466,12 +492,3 @@ class Node:
 
         req = threading.Thread(target=thread_function, args=())
         req.start()
-                
-def between(ID1, ID2, key):
-    if ID1 == ID2:
-        return True
-    wrap = ID1 > ID2
-    if not wrap:
-        return True if key > ID1 and key <= ID2 else False
-    else:
-        return True if key > ID1 or  key <= ID2 else False

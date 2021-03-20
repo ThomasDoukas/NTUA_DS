@@ -2,18 +2,18 @@ import requests
 import pickle
 import time
 from time import time
-import hashlib
 import threading
 import asyncio
 from Node import Node
 from config import *
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 
 node = Node()
 
 chord = Blueprint('chord', __name__)
 
+''' This is the single point in the application used for returning to the client and terminating actions. '''
 @chord.route("/eureka", methods=['POST'])
 def eureka():
     data = pickle.loads(request.get_data())
@@ -93,7 +93,11 @@ def join():
     print("Forwarded query...")
     return "200"
 
-
+'''
+Most actions pass through /query.
+This is the entry point for find_successor.
+Any replication action gets dealt with here.
+'''
 @chord.route('/query', methods=['POST'])
 def query():
     data = pickle.loads(request.get_data())
@@ -246,13 +250,13 @@ def notify():
         }
     endpoint = 'http://' + node.succ['IP'] + ":" + str(node.succ['port']) + "/query"
     def thread_function():
-        response = requests.post(endpoint, data=pickle.dumps(args))
+        requests.post(endpoint, data=pickle.dumps(args))
 
     req = threading.Thread(target=thread_function, args=())
     req.start()
     return "Forwarded..."
 
-
+''' Gets run by the successor of a newly inserted node. '''
 @chord.route('/requestItems', methods=['POST'])
 def requestItems():
     data = pickle.loads(request.get_data())
@@ -262,7 +266,11 @@ def requestItems():
     node.send_items(data['time'])
     return "200"
 
-
+'''
+Gets run by a newly inserted node, after its successor has dispatched any items 
+for which the former is now responsible, inserting them into the local storage
+and initiating any replication specific actions.
+'''
 @chord.route('/receiveItems', methods=['POST'])
 def receiveItems():
     data = pickle.loads(request.get_data())
@@ -296,7 +304,11 @@ def receiveItems():
     else:
         return "200"
     
-
+'''
+My predecessor has just left, leaving all these items with me.
+I should update my predecessor info, notify the latter accordingly and
+start a replication process wherever needed.
+'''
 @chord.route('/departure', methods=['POST'])
 def departure():
     print("Ta pame.")
