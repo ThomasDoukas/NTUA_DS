@@ -10,6 +10,7 @@ Distributed Systems, ECE-NTUA 2020-2021
 * Project report
 
 ## To run
+Install dependencies first! (`./dependencies.sh`)  
 Each node operates both as a server and as a client.
 
 ### Server
@@ -26,7 +27,7 @@ To execute client actions one can use the CLI tool.
 When starting you only need to specify the port of a node already in the system, running on the same machine.
 * `python3 cli.py -p port`
 
-![GIF](https://github.com/phoevos/dingane/blob/main/9PQQ6yfWIG.gif)
+![GIF](https://github.com/phoevos/dingane/blob/main/assets/cli.gif)
 
 ## Tests
 
