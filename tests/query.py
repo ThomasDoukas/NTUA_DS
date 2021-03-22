@@ -62,4 +62,4 @@ if __name__ == '__main__':
     thr = elapsed_time/ops
     
     with open('tests/throughput/query.out', 'a') as f:
-        f.write("Consistency: " + consistency + " Replication Factor: " + repl + " Read Throughput: " + str(thr))
+        f.write("Consistency: " + consistency + " Replication Factor: " + repl + " Read Throughput: " + str(thr) + '\n')

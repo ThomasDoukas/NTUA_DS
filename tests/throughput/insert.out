@@ -1,6 +1,6 @@
 Consistency: eventual Replication Factor: 1 Write Throughput: 0.0522086386680603 0.057170313358306885
-Consistency: linearizability Replication Factor: 1 Write Throughput: 0.05773002243041992
+Consistency: linearizability Replication Factor: 1 Write Throughput: 0.05468967294692993
 Consistency: eventual Replication Factor: 3 Write Throughput: 0.058438993453979494 0.0633873782157898
-Consistency: linearizability Replication Factor: 3 Write Throughput: 0.07911473417282104
+Consistency: linearizability Replication Factor: 3 Write Throughput: 0.07842908382415771
 Consistency: eventual Replication Factor: 5 Write Throughput: 0.06140097570419312 0.06447116613388061
-Consistency: linearizability Replication Factor: 5 Write Throughput: 0.09633727693557739
+Consistency: linearizability Replication Factor: 5 Write Throughput: 0.09642767238616944

@@ -86,45 +86,41 @@ class Node:
         }
         
         found = ()
-        if((data['action'] == SEARCH) and (data['consistency'] == EVENTUAL)):
+        if((data['action'] == SEARCH) and ((data['consistency'] == EVENTUAL) or (data['consistency'] == LINEARIZABILITY))):
             try:
                 found = self.storage[key]
             except:
                 pass
+            
         if (between(self.pred['ID'], self.ID, key) or found):
             print("Node " + str(self.port) + " is the successor...")
             if(data['action'] == SEARCH):
                 if((data['consistency'] == LINEARIZABILITY) and (self.k > 1)):
                     '''
-                        We have found the primary replica manager.
+                        We have found a replica manager.
                         Now we need to forward the query until we reach the tail.
                         To differentiate between the two phases of the linearizability search we will use a different flag.
                         We also need to update the key with the successor's ID, 
                         so that each one of my successors (and possible secondary replica managers)
                         is potentially able to return to the client with the query response.
                     '''
-                    value = ()
-                    superDuperImportantFlag = 1
-                    try:
-                        value = self.storage[key]
-                    except:
-                        value = "The requested key was not found."
-                        superDuperImportantFlag = 0
-
-                    data['value'] = value
-                    if (superDuperImportantFlag):
-                        address = 'http://' + '{}:{}'.format(self.succ['IP'], self.succ['port'])
+                    if (found):
+                        if (found[1] < self.k):
+                            succ_ID = self.succ['ID']
+                            succ_IP = self.succ['IP']
+                            succ_port = self.succ['port']
+                        address = 'http://' + '{}:{}'.format(succ_IP, succ_port)
                         endpoint = '/query'
                         args = {
                             'dest_ID': dest_ID,
                             'dest_IP': dest_IP,
                             'dest_port': dest_port,
-                            'key': self.succ['ID'],
+                            'key': succ_ID,
                             'action': SEARCH,
                             'consistency': LINEARIZABILITY_PHASE_2,
                             'node_list': data['node_list'],
                             'value': {
-                                data['key']: value
+                                data['key']: found
                             },
                             'time': data['time']
                         }
@@ -134,6 +130,9 @@ class Node:
                         req = threading.Thread(target=thread_function, args=())
                         req.start()
                         return "Enter the cult..."
+                    
+                    else:
+                        data['value'] = "The requested key was not found."
 
                 elif (data['consistency'] == LINEARIZABILITY_PHASE_2):
                     '''
