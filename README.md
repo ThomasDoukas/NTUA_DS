@@ -26,15 +26,17 @@ To execute client actions one can use the CLI tool.
 When starting you only need to specify the port of a node already in the system, running on the same machine.
 * `python3 cli.py -p port`
 
+![GIF](https://github.com/phoevos/dingane/blob/main/9PQQ6yfWIG.gif)
+
 ## Tests
 
-* Consecutive Writes  
+### Consecutive Writes  
 ![Consecutive Writes](https://github.com/phoevos/dingane/blob/main/tests/plots/write_thr.png)
 
-* Consecutive Reads  
+### Consecutive Reads  
 ![Consecutive Reads](https://github.com/phoevos/dingane/blob/main/tests/plots/read_thr.png)
 
-* Mixed Read-Write Requests  
+### Mixed Read-Write Requests  
 ![Mixed Read-Write Requests](https://github.com/phoevos/dingane/blob/main/tests/plots/mixed.png)
 
 ## Contributors
