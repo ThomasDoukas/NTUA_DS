@@ -45,3 +45,6 @@ When starting you only need to specify the port of a node already in the system,
 * [Phoevos Kalemkeris](https://github.com/phoevos)
 * [Thomas Doukas](https://github.com/ThomasDoukas)
 * [Giannis Psarras](https://github.com/giannispsarr)
+
+
+README.md as created by [Phoevos Kalemkeris](https://github.com/phoevos)
